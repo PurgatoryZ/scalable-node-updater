@@ -2,8 +2,9 @@ var http = require('http');
 var _ = require('lodash');
 
 var options = {
-    hostname: '192.168.99.100',
-    port: 8282,
+    //hostname: '192.168.99.100',
+    hostname: 'localhost',
+    port: 8181,
     path: '/update',
     method: 'POST',
     headers: {
@@ -16,7 +17,7 @@ for (var i = 0; i < 1; i++) {
 
     var data = {
         type: 'order update',
-        destination: _.random(1,10),
+        destination: 'global',
         data: {
             custId: _.random(1,10),
             orderId: i

@@ -6,8 +6,8 @@ var schema = {
     'type': 'object',
     'properties': {
         'type': { 'type': 'string', 'required': true},
-        'destination': { 'type': 'any', 'required': true},
-        'data': {'type': 'object', 'required': true}
+        'destination': { 'type': 'any', 'required': true}, //this could be a user id, a customer id, etc
+        'data': {'type': 'object', 'required': false}
     }
 };
 

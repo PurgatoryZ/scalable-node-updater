@@ -4,44 +4,65 @@ var sockjs = require('sockjs');
 var redis = require('redis');
 var os = require('os');
 var schema = require('./event-schema');
+var _ = require('lodash');
 //var splunk = require('splunk-sdk');
 
 
 var host = os.hostname();
+
 // Setup Redis pub/sub.
 // NOTE: You must create two Redis clients, as
 // the one that subscribes can't also publish.
-
 var pub = redis.createClient(6379, 'redis');
 var sub = redis.createClient(6379, 'redis');
+//var clientRegistration = redis.createClient(6379, 'redis'); //third client to keep track of lists
+
 sub.subscribe('global');
 
-// Listen for messages being published to this server.
+// Listen for messages being published to this server. these messages came from another server.
 sub.on('message', function(channel, msg) {
-    // Broadcast the message to all connected clients on this server.
-    console.log(host, ' got update: ', msg);
-    for (var i=0; i<clients.length; i++) {
-        clients[i].write(msg);
-    }
+    var event = JSON.parse(msg);
+    _.each(clients, function(client) {
+        if (_.contains(client.destinations, event.destination)) {
+            client.write(msg); // Broadcast the message to all connected clients registered for this event.
+        }
+    });
 });
 
 // Setup our SockJS server.
 var clients = [];
 var echo = sockjs.createServer();
 echo.on('connection', function(conn) {
-    // Add this client to the client list.
-    clients.push(conn);
+    //TODO: Authenticate the client via whatever, check the headers
 
+    conn.destinations = [];
+    console.log('opening', conn.id);
     // Listen for data coming from clients.
-    conn.on('data', function(message) {
-        // Publish this message to the Redis pub/sub.
-        pub.publish('global', message);
+    conn.on('data', function(event) {
+        //web connections will register which types of events they want to listen for.
+        var message = JSON.parse(event);
+
+        if (schema.check(message)) { //all messages need the right format
+            if (message.type === 'REGISTER_DESTINATIONS') {
+                _.each(message.destination, function(event) {
+                    conn.destinations.push(event);
+                });
+            } else {
+                //register a whole bunch of callbacks here
+
+                // Publish this message to the Redis pub/sub.
+                //pub.publish('global', message);
+            }
+        }
     });
 
     // Remove the client from the list.
     conn.on('close', function() {
+        console.log('closing', conn.id);
         clients.splice(clients.indexOf(conn), 1);
     });
+
+    clients.push(conn);
 });
 
 function handleRequest(request, response){
